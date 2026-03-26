@@ -392,7 +392,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 448636471}
-  - component: {fileID: 448636474}
   - component: {fileID: 448636473}
   - component: {fileID: 448636472}
   m_Layer: 0
@@ -411,7 +410,7 @@ Transform:
   m_GameObject: {fileID: 448636470}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.8, y: 0.208, z: 0.42}
+  m_LocalPosition: {x: 0.8, y: 0.208, z: 0.52}
   m_LocalScale: {x: 0.3072947, y: 0.3072947, z: 1.4591365}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -487,14 +486,6 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!33 &448636474
-MeshFilter:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 448636470}
-  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
 --- !u!1 &832575517
 GameObject:
   m_ObjectHideFlags: 0
@@ -701,6 +692,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::impacto
   targetTags:
   - ataquePlayer
+  knockbackForce: 5
+  upwardModifier: 0.3
+  singleHitPerActivation: 1
 --- !u!1 &1516113818
 GameObject:
   m_ObjectHideFlags: 0
@@ -713,6 +707,7 @@ GameObject:
   - component: {fileID: 1516113820}
   - component: {fileID: 1516113819}
   - component: {fileID: 1516113822}
+  - component: {fileID: 1516113823}
   m_Layer: 0
   m_Name: player
   m_TagString: Untagged
@@ -792,7 +787,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1516113818}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b099caeba17acc14da175fe5e5d502ad, type: 3}
   m_Name: 
@@ -802,6 +797,30 @@ MonoBehaviour:
   attackCooldown: 0.3
   animator: {fileID: 0}
   attackTrigger: Attack
+--- !u!114 &1516113823
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1516113818}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1d1c9b0fd30decc4f8d2b0dd28367af5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Soco2
+  range: 2
+  damage: 10
+  hittableLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  impactForce: 3
+  cooldown: 0.5
+  origin: {fileID: 448636471}
+  impactEffect: {fileID: 0}
+  animator: {fileID: 0}
+  punchTrigger: Punch
+  punchSound: {fileID: 0}
 --- !u!1 &1545590690
 GameObject:
   m_ObjectHideFlags: 0
@@ -1296,6 +1315,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::impacto
   targetTags:
   - ataquePlayer
+  knockbackForce: 5
+  upwardModifier: 0.3
+  singleHitPerActivation: 1
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
