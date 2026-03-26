@@ -1,5 +1,5 @@
-using System.Collections;
 using UnityEngine;
+using System.Collections;
 
 public class Soco : MonoBehaviour
 {
@@ -17,12 +17,16 @@ public class Soco : MonoBehaviour
     [Tooltip("Nome do trigger do Animator (se usado)")]
     public string attackTrigger = "Attack";
 
+    private Hitbox hitboxScript;
     private bool canAttack = true;
 
     void Start()
     {
         if (hitbox != null)
             hitbox.SetActive(false);
+
+        if (hitbox != null)
+            hitboxScript = hitbox.GetComponent<Hitbox>();
     }
 
     void Update()
@@ -41,7 +45,16 @@ public class Soco : MonoBehaviour
             animator.SetTrigger(attackTrigger);
 
         if (hitbox != null)
+        {
+            // limpa histórico de acertos e ativa hitbox
+            hitboxScript?.ClearHits();
+
             hitbox.SetActive(true);
+            Physics.SyncTransforms();
+
+            // checagem extra (Hitbox também faz isso em OnEnable)
+            hitboxScript?.CheckInitialOverlaps();
+        }
 
         yield return new WaitForSeconds(hitboxActiveTime);
 
