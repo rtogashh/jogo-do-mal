@@ -5,8 +5,9 @@ public class DiaENoite : MonoBehaviour
 {
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     [SerializeField] float dayDurationInSeconds = 60f; // Tempo para um dia completo
-    private float rotationSpeed = 360f;
+    //private float rotationSpeed = 360f;
     [SerializeField] private Light luzinha;
+    //bool noite = false;
 
     private void Start()
     {
@@ -24,5 +25,24 @@ public class DiaENoite : MonoBehaviour
         transform.Rotate(Vector3.right * rotationSpeed * Time.deltaTime);
         float dotProduct = Vector3.Dot(transform.forward, Vector3.down);
         luzinha.intensity = Mathf.Max(0, dotProduct);
+        //if (luzinha.intensity > 0) noite = false;
+        //else if (luzinha.intensity < 0) noite = true;
     }
+
+    /*void AjustesDia()
+    {
+        if (noite == false)
+        {
+            //Environment reflections Intensity Multiplier = 1
+            //Fog = true
+        }
+    }
+    void AjustesNoite()
+    {
+        if (noite == false)
+        {
+            //Environment reflections Intensity Multiplier = 0
+            //Fog = false
+        }
+    }*/
 }
