@@ -21,7 +21,7 @@ public class PlayerController : MonoBehaviour
 
     [Header("Booleanas")]
     bool canMove = true;
-    bool agachado = false;
+    //bool agachado = false;
     bool correndo = false;
 
     [Header("Gravidade")]
@@ -38,18 +38,14 @@ public class PlayerController : MonoBehaviour
     void Start()
     {
         controller = GetComponent<CharacterController>();
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
 
         speed = Walking;
     }
 
-    public void OnMove(InputAction.CallbackContext context)
+    public void OnMove(InputValue value)
     {
-        if (canMove)
-            //moveInput = value.Get<Vector2>();
-            moveInput = context.ReadValue<Vector2>();
-        //Debug.Log($"Move Imput: {moveInput}");
+        // Armazena o Vector2 para usar no seu script de movimento (transform.Translate ou CharacterController)
+        moveInput = value.Get<Vector2>();
     }
 
     /*public void OnJump(InputAction.CallbackContext context)
@@ -65,35 +61,42 @@ public class PlayerController : MonoBehaviour
         }
     }*/
 
-    public void OnDash(InputAction.CallbackContext context)
+    public void OnDash(InputValue value)
     {
-        if (context.performed && Time.time >= nextDashTime)
+        // Verificamos se o botão foi pressionado e se o cooldown permiti
+        if (value.isPressed && Time.time >= nextDashTime)
         {
             nextDashTime = Time.time + dashCooldown;
+
+            // Se o Dash for apenas para trás (como no seu código original):
             Vector3 direction = -transform.forward;
+
+            // Se você quiser um Dash que segue a direção que o jogador está andando:
+            // Vector3 direction = transform.TransformDirection(new Vector3(-moveInput.x, 0, -moveInput.y));
 
             // Aplica a força inicial
             impact += direction.normalized * dashForce;
         }
     }
 
-    public void OnSprint(InputAction.CallbackContext context)
+    public void OnSprint(InputValue value)
     {
-        //Debug.Log("Sprint");
-        if (context.performed && agachado == false && canMove)
+        // 1. Lê o valor (1.0 se apertado, 0.0 se solto)
+        float sprintValue = value.Get<float>();
+
+        // 2. Define o estado booleano
+        correndo = sprintValue > 0;
+
+        // 3. Aplica a velocidade baseada no estado (e na sua permissão de movimento)
+        if (canMove)
         {
-            correndo = true;
-            speed = Running;
+            speed = correndo ? Running : Walking;
         }
-        else if (context.canceled && agachado == false && canMove)
-        {
-            //Debug.Log("É pra andar");
-            correndo = false;
-            speed = Walking;
-        }
+
+        //Debug.Log($"Correndo: {correndo}, Velocidade: {speed}");
     }
 
-    public void OnCrouch(InputAction.CallbackContext context)
+    /*public void OnCrouch(InputAction.CallbackContext context)
     {
         //Debug.Log("Crounch");
         if (context.performed && correndo == false && canMove)
@@ -108,7 +111,7 @@ public class PlayerController : MonoBehaviour
             controller.height = defaultHeight;
             speed = Walking;
         }
-    }
+    }*/
 
     void Update()
     {
