@@ -53,8 +53,12 @@ public class Hitbox : MonoBehaviour
         if (other == null || other.gameObject == gameObject)
             return;
 
-        var target = other.gameObject;
-        if (singleHitPerActivation && hitHistory.Contains(target))
+        // Determina a "entidade" real a ser marcada no histórico:
+        // prioriza o GameObject que contém o componente `vida`, senão usa o root.
+        GameObject otherEntity = GetEntityRoot(other.gameObject);
+        if (otherEntity == null) return;
+
+        if (singleHitPerActivation && hitHistory.Contains(otherEntity))
             return;
 
         if (impactoScript == null)
@@ -63,11 +67,11 @@ public class Hitbox : MonoBehaviour
         if (impactoScript == null)
             return;
 
-        if (!impactoScript.IsTargetTag(target))
+        if (!impactoScript.IsTargetTag(otherEntity))
             return;
 
-        hitHistory.Add(target);
-        impactoScript.RegisterHit(target, contactPoint);
+        hitHistory.Add(otherEntity);
+        impactoScript.RegisterHit(otherEntity, contactPoint);
     }
 
     void OnTriggerEnter(Collider other)
@@ -124,5 +128,19 @@ public class Hitbox : MonoBehaviour
             if (h.gameObject == gameObject) continue;
             HandleHit(h, h.ClosestPoint(col.bounds.center));
         }
+    }
+
+    // Retorna o GameObject que representa a entidade alvo:
+    // - primeiro procura um componente `vida` em parents (entidade lógica);
+    // - se não houver, usa transform.root.
+    private GameObject GetEntityRoot(GameObject go)
+    {
+        if (go == null) return null;
+
+        var vidaComp = go.GetComponentInParent<vida>();
+        if (vidaComp != null)
+            return vidaComp.gameObject;
+
+        return go.transform.root != null ? go.transform.root.gameObject : go;
     }
 }

@@ -21,6 +21,9 @@ public class vida : MonoBehaviour
     private float lastDamageTime = -Mathf.Infinity;
     private bool isDead = false;
 
+    // Evento para notificar que recebeu dano (útil para IA reagir)
+    public event Action OnDamageTaken;
+
     void Awake()
     {
         // Garante que a vida seja inicializada corretamente antes de OnEnable/Start.
@@ -64,6 +67,10 @@ public class vida : MonoBehaviour
             Instantiate(hitEffectPrefab, transform.position, Quaternion.identity);
 
         UpdateHealthUI();
+
+        // Notifica ouvintes que tomou dano (somente se houve dano aplicado)
+        if (applied > 0)
+            OnDamageTaken?.Invoke();
 
         if (currentHealth <= 0)
             Die();

@@ -1,31 +1,26 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>
-/// IA simples de inimigo com 2 status:
-/// - Patrol: ronda uma ·rea definida (pontos aleatÛrios dentro de um raio ou lista de waypoints)
-/// - Chase: segue o player quando ele entra em uma dist‚ncia definida
-/// </summary>
 public class IA_inimigo : MonoBehaviour
 {
     public enum Estado { Patrol, Chase }
 
     [Header("Alvo")]
-    [Tooltip("Transform do player. Se n„o atribuÌdo, tenta encontrar GameObject com tag 'Player'.")]
+    [Tooltip("Transform do player. Se n√£o atribu√≠do, tenta encontrar GameObject com tag 'Player'.")]
     public Transform player;
 
-    [Header("DetecÁ„o")]
-    [Tooltip("Dist‚ncia (unidades) para comeÁar a perseguir o player.")]
+    [Header("Detec√ß√£o")]
+    [Tooltip("Dist√¢ncia (unidades) para come√ßar a perseguir o player.")]
     public float followDistance = 8f;
 
     [Header("Movimento")]
     public float patrolSpeed = 2f;
     public float chaseSpeed = 4f;
-    [Tooltip("RotaÁ„o suave ao se mover (graus por segundo).")]
+    [Tooltip("Rota√ß√£o suave ao se mover (graus por segundo).")]
     public float rotationSpeed = 720f;
 
     [Header("Patrulha")]
-    [Tooltip("Se true, gera pontos aleatÛrios dentro do raio; caso contr·rio, usa waypoints listados.")]
+    [Tooltip("Se true, gera pontos aleat√≥rios dentro do raio; caso contr√°rio, usa waypoints listados.")]
     public bool useRandomPatrol = true;
     [Tooltip("Raio (em unidades) ao redor do centro para gerar pontos de patrulha.")]
     public float patrolRadius = 6f;
@@ -33,8 +28,12 @@ public class IA_inimigo : MonoBehaviour
     public List<Transform> waypoints = new List<Transform>();
     [Tooltip("Tempo que o inimigo espera ao chegar no ponto (segundos).")]
     public float waitTimeAtWaypoint = 1f;
-    [Tooltip("Toler‚ncia para considerar que chegou no ponto.")]
+    [Tooltip("Toler√¢ncia para considerar que chegou no ponto.")]
     public float waypointTolerance = 0.3f;
+
+    [Header("Stun ao receber dano")]
+    [Tooltip("Tempo em segundos que a IA fica desabilitada ao receber dano.")]
+    public float disableOnHitDuration = 1f;
 
     // Estado interno
     public Estado estadoAtual { get; private set; } = Estado.Patrol;
@@ -44,6 +43,16 @@ public class IA_inimigo : MonoBehaviour
     private Vector3 currentWaypoint;
     private int currentWaypointIndex = 0;
     private float waitTimer = 0f;
+
+    // Controle de desabilita√ß√£o tempor√°ria (stun)
+    private bool isDisabled = false;
+    private float disableTimer = 0f;
+
+    // Refer√™ncia ao componente de vida para assinar evento de dano
+    private vida vidaComp;
+
+    // Rigidbody (se houver) para respeitar f√≠sica e evitar conflito com transform.position
+    private Rigidbody rb;
 
     void Start()
     {
@@ -62,18 +71,42 @@ public class IA_inimigo : MonoBehaviour
             currentWaypoint = waypoints[0].position;
         else
             currentWaypoint = transform.position;
+
+        // Procura componente de vida no pr√≥prio GameObject ou em parents e assina evento
+        vidaComp = GetComponentInParent<vida>();
+        if (vidaComp != null)
+            vidaComp.OnDamageTaken += HandleDamageTaken;
+
+        // Cache do Rigidbody (procura tamb√©m em parents caso o RB esteja no root)
+        rb = GetComponent<Rigidbody>() ?? GetComponentInParent<Rigidbody>();
+    }
+
+    void OnDestroy()
+    {
+        if (vidaComp != null)
+            vidaComp.OnDamageTaken -= HandleDamageTaken;
     }
 
     void Update()
     {
-        // Atualiza referÍncia do player caso tenha sido adicionada depois
+        // Se desabilitado por dano, contabiliza tempo e n√£o executa comportamentos
+        if (isDisabled)
+        {
+            disableTimer -= Time.deltaTime;
+            if (disableTimer <= 0f)
+                isDisabled = false;
+            else
+                return; // mant√©m IA inativa enquanto durar o stun
+        }
+
+        // Atualiza refer√™ncia do player caso tenha sido adicionada depois
         if (player == null)
         {
             var go = GameObject.FindGameObjectWithTag("Player");
             if (go != null) player = go.transform;
         }
 
-        // Decide estado baseado na dist‚ncia ao player
+        // Decide estado baseado na dist√¢ncia ao player
         if (player != null && Vector3.Distance(transform.position, player.position) <= followDistance)
         {
             estadoAtual = Estado.Chase;
@@ -116,7 +149,7 @@ public class IA_inimigo : MonoBehaviour
             if (waitTimer >= waitTimeAtWaypoint)
             {
                 waitTimer = 0f;
-                // PrÛximo waypoint
+                // Pr√≥ximo waypoint
                 if (useRandomPatrol)
                 {
                     currentWaypoint = GetRandomPointInRadius();
@@ -137,15 +170,27 @@ public class IA_inimigo : MonoBehaviour
     private void MoveTowards(Vector3 targetPos, float speed)
     {
         Vector3 dir = (targetPos - transform.position);
-        dir.y = 0f; // mantÈm movimento no plano horizontal
-        if (dir.sqrMagnitude < 0.0001f) return;
+        dir.y = 0f; // mant√©m movimento no plano horizontal
+                    if (dir.sqrMagnitude < 0.0001f)  return;
 
         Vector3 move = dir.normalized * speed * Time.deltaTime;
+
+        if (rb != null && !rb.isKinematic)
+        {
+            // Usa MovePosition/MoveRotation para n√£o conflitar com f√≠sica
+            rb.MovePosition(rb.position + move);
+
+            Quaternion targetRot = Quaternion.LookRotation(dir.normalized);
+            rb.MoveRotation(Quaternion.RotateTowards(rb.rotation, targetRot, rotationSpeed * Time.deltaTime));
+            return;
+        }
+
+        // Fallback: movimento por transform (sem Rigidbody)
         transform.position += move;
 
-        // Rotaciona suavemente para a direÁ„o de movimento
-        Quaternion targetRot = Quaternion.LookRotation(dir.normalized);
-        transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot, rotationSpeed * Time.deltaTime);
+        // Rotaciona suavemente para a dire√ß√£o de movimento
+        Quaternion targetRotTransform = Quaternion.LookRotation(dir.normalized);
+        transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotTransform, rotationSpeed * Time.deltaTime);
     }
 
     private Vector3 GetRandomPointInRadius()
@@ -155,9 +200,19 @@ public class IA_inimigo : MonoBehaviour
         return point;
     }
 
+    private void HandleDamageTaken()
+    {
+        // Apenas ativa o stun/desabilita√ß√£o para que a f√≠sica possa aplicar knockback
+        isDisabled = true;
+        disableTimer = disableOnHitDuration;
+
+        // N√ÉO zere rb.velocity nem chame rb.Sleep() ‚Äî isso cancela o knockback.
+        // Se quiser reduzir rea√ß√£o excessiva, use um drag tempor√°rio ou ajuste knockbackForce.
+    }
+
     void OnDrawGizmosSelected()
     {
-        // Desenha raio de detecÁ„o e raio de patrulha no editor
+        // Desenha raio de detec√ß√£o e raio de patrulha no editor
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(transform.position, followDistance);
 
@@ -173,12 +228,12 @@ public class IA_inimigo : MonoBehaviour
 
 
 //O que foi feito (breve):
-//-SubstituÌ o stub por uma IA com dois estados: `Patrol` e `Chase`.
-//- Permite configurar via Inspector: alvo(`player`), dist‚ncia de detecÁ„o, velocidades, patrulha por pontos fixos ou aleatÛria dentro de um raio, tempo de espera em cada ponto.
-//- ImplementaÁ„o simples e compatÌvel com Unity sem depender de NavMesh ou Rigidbody (movimento por `transform.position`), f·cil de integrar e ajustar.
-//- Tenta localizar o player automaticamente pelo tag `"Player"` se `player` n„o for atribuÌdo.
-
-//Sugestıes de uso:
+//-SubstituÔøΩ o stub por uma IA com dois estados: `Patrol` e `Chase`.
+//- Permite configurar via Inspector: alvo(`player`), distÔøΩncia de detecÔøΩÔøΩo, velocidades, patrulha por pontos fixos ou aleatÔøΩria dentro de um raio, tempo de espera em cada ponto.
+//- ImplementaÔøΩÔøΩo simples e compatÔøΩvel com Unity sem depender de NavMesh ou Rigidbody (movimento por `transform.position`), fÔøΩcil de integrar e ajustar.
+//- Tenta localizar o player automaticamente pelo tag `"Player"` se `player` nÔøΩo for atribuÔøΩdo.
+//
+//SugestÔøΩes de uso:
 //-Atribua o `Transform` do player no Inspector ou marque o player com a tag `Player`.
 //- Ajuste `followDistance`, `patrolRadius`, `patrolSpeed` e `chaseSpeed` conforme necessidade.
-//- Se preferir waypoints fixos, desligue `useRandomPatrol` e adicione `Transform`s na lista `waypoints`.
+//- Se preferir waypoints fixos, desligue `useRandomPatrol`  e adicione `Transform`s na lista `waypoints`.

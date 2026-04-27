@@ -1,3 +1,4 @@
+csharp Assets\scripts\Soco2.cs
 using UnityEngine;
 
 public class Soco2 : MonoBehaviour
