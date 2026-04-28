@@ -206,8 +206,6 @@ public class IA_inimigo : MonoBehaviour
         isDisabled = true;
         disableTimer = disableOnHitDuration;
 
-        // NÃO zere rb.velocity nem chame rb.Sleep() — isso cancela o knockback.
-        // Se quiser reduzir reação excessiva, use um drag temporário ou ajuste knockbackForce.
     }
 
     void OnDrawGizmosSelected()
@@ -227,13 +225,3 @@ public class IA_inimigo : MonoBehaviour
 }
 
 
-//O que foi feito (breve):
-//-Substitu� o stub por uma IA com dois estados: `Patrol` e `Chase`.
-//- Permite configurar via Inspector: alvo(`player`), dist�ncia de detec��o, velocidades, patrulha por pontos fixos ou aleat�ria dentro de um raio, tempo de espera em cada ponto.
-//- Implementa��o simples e compat�vel com Unity sem depender de NavMesh ou Rigidbody (movimento por `transform.position`), f�cil de integrar e ajustar.
-//- Tenta localizar o player automaticamente pelo tag `"Player"` se `player` n�o for atribu�do.
-//
-//Sugest�es de uso:
-//-Atribua o `Transform` do player no Inspector ou marque o player com a tag `Player`.
-//- Ajuste `followDistance`, `patrolRadius`, `patrolSpeed` e `chaseSpeed` conforme necessidade.
-//- Se preferir waypoints fixos, desligue `useRandomPatrol`  e adicione `Transform`s na lista `waypoints`.
