@@ -1,15 +1,15 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 
 public class Soco2 : MonoBehaviour
 {
-    [Header("Configuração do soco")]
+    [Header("ConfiguraÃ§Ã£o do soco")]
     [SerializeField] private float range = 2f;
     [SerializeField] private int damage = 10;
     [SerializeField] private LayerMask hittableLayers = ~0;
     [SerializeField] private float impactForce = 3f;
     [SerializeField] private float cooldown = 0.5f;
 
-    [Header("Referências (opcionais)")]
+    [Header("ReferÃªncias (opcionais)")]
     [SerializeField] private Transform origin; // ponto de onde o ray parte; se null usa o transform deste objeto
     [SerializeField] private GameObject impactEffect;
     [SerializeField] private Animator animator;
@@ -19,11 +19,17 @@ public class Soco2 : MonoBehaviour
     private Camera mainCamera;
     private float lastPunchTime = -Mathf.Infinity;
 
+    // ReferÃªncia ao sistema de stamina (se existir no player)
+    private Stamina staminaComp;
+
     void Start()
     {
         mainCamera = Camera.main;
         if (origin == null)
             origin = transform;
+
+        // tenta obter Stamina no mesmo objeto ou em parents
+        staminaComp = GetComponent<Stamina>() ?? GetComponentInParent<Stamina>();
     }
 
     void Update()
@@ -36,16 +42,25 @@ public class Soco2 : MonoBehaviour
 
     private void DoPunch()
     {
+        // Se houver componente de stamina, tenta consumir antes de executar o soco
+        if (staminaComp != null)
+        {
+            if (!staminaComp.TryConsume(staminaComp.AttackCost))
+                return; // bloco se nÃ£o tiver stamina suficiente
+        }
+
         lastPunchTime = Time.time;
 
-        // animação e som (se presente)
+        Debug.Log("Soco realizado.");
+
+        // animaÃ§Ã£o e som (se presente)
         if (animator != null && !string.IsNullOrEmpty(punchTrigger))
             animator.SetTrigger(punchTrigger);
 
         if (punchSound != null)
             AudioSource.PlayClipAtPoint(punchSound, origin.position);
 
-        // cria o raio a partir da câmera usando posição do mouse
+        // cria o raio a partir da cÃ¢mera usando posiÃ§Ã£o do mouse
         if (mainCamera == null)
             mainCamera = Camera.main;
 
@@ -55,20 +70,20 @@ public class Soco2 : MonoBehaviour
 
         if (Physics.Raycast(ray, out hit, range, hittableLayers))
         {
-            // envia mensagem de dano
+            // envia mensagem "TakeDamage" se existir algum receptor no objeto atingido
             hit.collider.gameObject.SendMessage("TakeDamage", damage, SendMessageOptions.DontRequireReceiver);
 
-            // se o alvo tem um componente `impacto`, delega para ele (centraliza o knockback)
+            // aplica forï¿½a se houver Rigidbody (fallback somente quando nÃ£o houver 'impacto' delegado)
             var impactoComp = hit.collider.gameObject.GetComponentInParent<impacto>();
-            if (impactoComp != null)
+            if (impactoComp == null)
             {
-                impactoComp.RegisterHit(hit.collider.gameObject, origin.position);
+                if (hit.rigidbody != null)
+                    hit.rigidbody.AddForce(-hit.normal * impactForce, ForceMode.Impulse);
             }
             else
             {
-                // fallback: aplica força diretamente se não houver `impacto`
-                if (hit.rigidbody != null)
-                    hit.rigidbody.AddForce(-hit.normal * impactForce, ForceMode.Impulse);
+                // delega ao sistema de impacto (caso exista) para evitar duplicaÃ§Ã£o de efeitos
+                impactoComp.RegisterHit(hit.collider.gameObject, origin.position);
             }
 
             // instancia efeito de impacto se fornecido

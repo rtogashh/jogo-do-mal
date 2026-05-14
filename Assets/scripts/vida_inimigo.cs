@@ -2,9 +2,9 @@ using System;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class vida : MonoBehaviour
+public class vida_inimigo : MonoBehaviour
 {
-    [Header("Configuração de Vida")]
+    [Header("Configuração de Vida (Inimigo)")]
     [SerializeField] private int maxHealth = 100;
     [SerializeField] private float invulnerabilityDuration = 0.5f; // segundos após receber dano
 
@@ -15,7 +15,15 @@ public class vida : MonoBehaviour
     [SerializeField] private AudioClip damageSound;
     [SerializeField] private AudioClip deathSound;
     [SerializeField] private GameObject hitEffectPrefab;
-    [SerializeField] private Slider healthBar; // se usado, suporta tanto 0..1 quanto 0..maxHealth
+    [SerializeField] private Slider healthBar; // suporta 0..1 ou 0..maxHealth
+
+    [Header("Drops / Recompensa")]
+    [Tooltip("Prefab a instanciar quando morrer (opcional).")]
+    public GameObject lootPrefab;
+    [Range(0f, 1f)]
+    public float lootDropChance = 0.25f;
+    [Tooltip("Delay antes de destruir o inimigo (segundos). 0 = destrói imediatamente após morte.")]
+    public float destroyDelay = 2f;
 
     private int currentHealth;
     private float lastDamageTime = -Mathf.Infinity;
@@ -24,45 +32,47 @@ public class vida : MonoBehaviour
     // Evento para notificar que recebeu dano (útil para IA reagir)
     public event Action OnDamageTaken;
 
+    // Evento específico para morte de inimigo
+    public event Action OnEnemyDied;
+
+    // Cache da IA caso queira desativá-la ao morrer
+    private IA_inimigo iaComp;
+
     void Awake()
     {
-        // Garante que a vida seja inicializada corretamente antes de OnEnable/Start.
         if (currentHealth <= 0 || currentHealth > maxHealth)
             currentHealth = Mathf.Clamp(maxHealth, 1, int.MaxValue);
 
-        Debug.Log($"[vida] Awake: {gameObject.name} health inicial = {currentHealth}/{maxHealth}");
+        Debug.Log($"[vida_inimigo] Awake: {gameObject.name} health inicial = {currentHealth}/{maxHealth}");
     }
 
     void Start()
     {
         UpdateHealthUI();
+        iaComp = GetComponentInParent<IA_inimigo>();
+        if (animator == null)
+            animator = GetComponent<Animator>();
     }
 
     void OnEnable()
     {
-        // Sincroniza estado caso o objeto seja reativado
         if (currentHealth <= 0 && !isDead)
             Die();
     }
 
+    // Principal API para dano (compatível com seu uso atual)
     public void TakeDamage(int amount)
     {
         if (isDead) return;
         if (Time.time < lastDamageTime + invulnerabilityDuration) return;
 
-        // Permite outro componente (Bloqueio) modificar o dano antes da aplicação
-        var bloqueio = GetComponentInParent<Bloqueio>();
-        if (bloqueio != null)
-        {
-            amount = bloqueio.ModifyDamageByBlock(amount);
-        }
-
         lastDamageTime = Time.time;
+
         int applied = Mathf.Max(0, amount);
         currentHealth -= applied;
         currentHealth = Mathf.Clamp(currentHealth, 0, maxHealth);
 
-        Debug.Log($"[vida] {gameObject.name} recebeu dano: {applied}. Vida atual: {currentHealth}/{maxHealth}");
+        Debug.Log($"[vida_inimigo] {gameObject.name} recebeu dano: {applied}. Vida atual: {currentHealth}/{maxHealth}");
 
         if (animator != null && !string.IsNullOrEmpty(hitTrigger))
             animator.SetTrigger(hitTrigger);
@@ -75,7 +85,6 @@ public class vida : MonoBehaviour
 
         UpdateHealthUI();
 
-        // Notifica ouvintes que tomou dano (somente se houve dano aplicado)
         if (applied > 0)
             OnDamageTaken?.Invoke();
 
@@ -83,6 +92,7 @@ public class vida : MonoBehaviour
             Die();
     }
 
+    // Sobrecarga para compatibilidade SendMessage/object
     public void TakeDamage(object damageObj)
     {
         if (damageObj == null) return;
@@ -94,7 +104,7 @@ public class vida : MonoBehaviour
         else if (int.TryParse(damageObj.ToString(), out int parsed))
             TakeDamage(parsed);
         else
-            Debug.LogWarning($"[vida] TakeDamage recebeu um objeto inválido: {damageObj}");
+            Debug.LogWarning($"[vida_inimigo] TakeDamage recebeu um objeto inválido: {damageObj}");
     }
 
     public void Heal(int amount)
@@ -131,7 +141,7 @@ public class vida : MonoBehaviour
         if (isDead) return;
         isDead = true;
 
-        Debug.LogError($"[vida] {gameObject.name} morreu. Stack trace para diagnóstico:\n{Environment.StackTrace}");
+        Debug.LogError($"[vida_inimigo] {gameObject.name} morreu.");
 
         if (animator != null && !string.IsNullOrEmpty(deathTrigger))
             animator.SetTrigger(deathTrigger);
@@ -139,7 +149,23 @@ public class vida : MonoBehaviour
         if (deathSound != null)
             AudioSource.PlayClipAtPoint(deathSound, transform.position);
 
-        enabled = false;
+        // Tenta desativar IA para evitar que continue movendo ou atacando
+        if (iaComp != null)
+            iaComp.enabled = false;
+
+        // Drop opcional
+        if (lootPrefab != null && UnityEngine.Random.value <= lootDropChance)
+        {
+            Instantiate(lootPrefab, transform.position, Quaternion.identity);
+        }
+
+        OnEnemyDied?.Invoke();
+
+        // Mantemos física/colisores intactos; opcionalmente destruímos o objeto após delay
+        if (destroyDelay > 0f)
+            Destroy(gameObject, destroyDelay);
+        else
+            Destroy(gameObject);
     }
 
     public bool IsDead() => isDead;
